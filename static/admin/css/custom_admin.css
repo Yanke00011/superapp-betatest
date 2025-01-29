@@ -1,0 +1,76 @@
+/* 美化管理界面 */
+#changelist-form .column-show_avatar {
+    width: 60px;
+}
+
+#changelist-form .column-is_active {
+    text-align: center;
+}
+
+.field-show_avatar img {
+    transition: transform 0.3s ease;
+}
+
+.field-show_avatar img:hover {
+    transform: scale(3);
+}
+
+/* 状态标签样式 */
+.column-is_active .true {
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.column-is_active .false {
+    background: #dc3545;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+/* 用户组样式 */
+.field-show_groups {
+    font-weight: 500;
+}
+
+/* 表格行悬停效果 */
+#changelist-form tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* 美化操作按钮 */
+.submit-row input {
+    border-radius: 4px;
+}
+
+/* 美化搜索框 */
+#searchbar {
+    border-radius: 4px;
+    padding: 8px;
+}
+
+/* 用户组标签样式 */
+.column-show_groups span {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+/* 分组样式 */
+.group-管理员 {
+    color: #dc3545 !important;
+}
+
+.group-VIP {
+    color: #ffc107 !important;
+}
+
+.group-会员 {
+    color: #28a745 !important;
+}
+
+.group-用户 {
+    color: #6c757d !important;
+} 

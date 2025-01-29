@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<link href="{% static 'css/file_manager.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="file-manager">
+    <div class="file-header">
+        <h1>文件管理</h1>
+    </div>
+
+    <div class="storage-info">
+        <div class="storage-overview">
+            <div class="storage-icon">
+                <i class="fas fa-hdd"></i>
+            </div>
+            <div class="storage-details">
+                <div class="storage-text">
+                    <span class="storage-used">{{ request.user.storage_quota.get_used_storage|filesizeformat }}</span>
+                    <span class="storage-total">/ {{ request.user.storage_quota.get_readable_quota }}</span>
+                </div>
+                <div class="storage-bar">
+                    <div class="storage-progress" id="storageProgress" 
+                         data-percent="{% if request.user.storage_quota %}{{ request.user.storage_quota.get_storage_usage_percent|floatformat:1 }}{% else %}0{% endif %}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 添加存储统计 -->
+        <div class="storage-stats">
+            <div class="stat-item">
+                <i class="fas fa-image"></i>
+                <div class="stat-info">
+                    <span class="stat-label">图片</span>
+                    <span class="stat-value">{{ image_count }}个 ({{ image_size|filesizeformat }})</span>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-file-alt"></i>
+                <div class="stat-info">
+                    <span class="stat-label">文档</span>
+                    <span class="stat-value">{{ document_count }}个 ({{ document_size|filesizeformat }})</span>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-video"></i>
+                <div class="stat-info">
+                    <span class="stat-label">视频</span>
+                    <span class="stat-value">{{ video_count }}个 ({{ video_size|filesizeformat }})</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加文件过滤和搜索功能 -->
+    <div class="file-controls">
+        <div class="filter-group">
+            <button class="filter-btn active" data-type="all">全部</button>
+            {% for type, name in file_types %}
+            <button class="filter-btn" data-type="{{ type }}">{{ name }}</button>
+            {% endfor %}
+        </div>
+        <div class="view-controls">
+            <select id="sortSelect" class="sort-select">
+                <option value="name">按名称排序</option>
+                <option value="date">按日期排序</option>
+                <option value="size">按大小排序</option>
+            </select>
+            <button id="viewToggle" class="view-toggle" title="切换视图">
+                <i class="fas fa-th-large"></i>
+            </button>
+        </div>
+        <input type="text" id="fileSearch" class="search-input" placeholder="搜索文件...">
+    </div>
+
+    <div class="upload-zone" id="uploadZone">
+        <div class="upload-content">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>拖拽文件到此处或点击上传</p>
+            <small>支持的文件类型：图片、文档、视频等</small>
+            <form id="uploadForm" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="file" id="fileUpload" name="file" style="display: none;">
+            </form>
+        </div>
+        <div id="uploadProgress" class="upload-progress">
+            <div class="progress-bar"><div></div></div>
+            <div class="progress-text">0%</div>
+        </div>
+    </div>
+
+    <div class="file-list">
+        {% for file in files %}
+        <div class="file-item" data-type="{{ file.file_type }}">
+            <div class="file-icon" onclick="previewFile('{{ file.file.url }}', '{{ file.file_type }}', '{{ file.original_name }}')">
+                <i class="fas {{ file.get_icon_class }}"></i>
+            </div>
+            <div class="file-info">
+                <div class="file-name">{{ file.original_name }}</div>
+                <div class="file-meta">
+                    <span>{{ file.get_file_size_display }}</span>
+                    <span>{{ file.uploaded_at|date:"Y-m-d H:i" }}</span>
+                    {% if file.is_public %}
+                    <span class="public-badge"><i class="fas fa-globe"></i> 公开</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="file-actions">
+                <a href="{% url 'files:download_file' file.id %}" class="action-btn download-btn" title="下载">
+                    <i class="fas fa-download"></i>
+                </a>
+                <button class="action-btn delete-btn" data-file-id="{{ file.id }}" onclick="deleteFile(this.dataset.fileId)" title="删除">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <div class="no-files">
+            <i class="fas fa-folder-open"></i>
+            <p>还没有上传任何文件</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="previewModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="previewTitle"></h3>
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="downloadFile()" title="下载">
+                    <i class="fas fa-download"></i>
+                </button>
+                <span class="close">&times;</span>
+            </div>
+        </div>
+        
+        <div id="previewToolbar" class="preview-toolbar"></div>
+        <div id="previewContainer" class="preview-container"></div>
+        
+        <!-- PDF导航 -->
+        <div id="pdfNavigation" class="pdf-navigation" style="display: none;">
+            <button onclick="changePdfPage(-1)"><i class="fas fa-chevron-left"></i></button>
+            <span>页面 <input type="number" id="pdfPageNum" min="1" value="1"> / <span id="pdfPageCount">1</span></span>
+            <button onclick="changePdfPage(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化存储进度条
+    initStorageProgress();
+    
+    // 初始化文件过滤和搜索功能
+    initFileFilters();
+    
+    // 初始化上传区域
+    initUploadZone();
+});
+
+function initStorageProgress() {
+    const progressBar = document.getElementById('storageProgress');
+    if (progressBar) {
+        const percent = parseFloat(progressBar.dataset.percent) || 0;
+        progressBar.style.width = percent + '%';
+        
+        if (percent >= 95) {
+            progressBar.classList.add('danger');
+        } else if (percent >= 90) {
+            progressBar.classList.add('warning');
+        }
+    }
+}
+
+function initFileFilters() {
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const fileItems = document.querySelectorAll('.file-item');
+    const searchInput = document.getElementById('fileSearch');
+    
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const type = this.dataset.type;
+            fileItems.forEach(item => {
+                if (type === 'all' || item.dataset.type === type) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    });
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            fileItems.forEach(item => {
+                const fileName = item.querySelector('.file-name').textContent.toLowerCase();
+                if (fileName.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+}
+
+function initUploadZone() {
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileUpload');
+
+    // 点击上传区域触发文件选择
+    uploadZone.addEventListener('click', function(e) {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+
+    // 拖拽相关事件
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // 拖拽样式
+    ['dragenter', 'dragover'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, () => {
+            uploadZone.classList.add('dragover');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        uploadZone.addEventListener(eventName, () => {
+            uploadZone.classList.remove('dragover');
+        });
+    });
+
+    // 处理文件拖放
+    uploadZone.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            handleFileUpload(files[0]);
+        }
+    });
+
+    // 处理文件选择
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            handleFileUpload(this.files[0]);
+        }
+    });
+}
+
+function handleFileUpload(file) {
+    const formData = new FormData(document.getElementById('uploadForm'));
+    const progressContainer = document.getElementById('uploadProgress');
+    const progressBar = progressContainer.querySelector('.progress-bar div');
+    const progressText = progressContainer.querySelector('.progress-text');
+    
+    progressContainer.style.display = 'block';
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '{% url "files:upload_file" %}', true);
+    xhr.setRequestHeader('X-CSRFToken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            const percent = (e.loaded / e.total) * 100;
+            progressBar.style.width = percent + '%';
+            progressText.textContent = Math.round(percent) + '%';
+        }
+    };
+    
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            location.reload();
+        } else {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                alert(response.error || '上传失败');
+            } catch (e) {
+                alert('上传失败');
+            }
+        }
+        progressContainer.style.display = 'none';
+        document.getElementById('uploadForm').reset();
+    };
+    
+    xhr.send(formData);
+}
+
+function deleteFile(fileId) {
+    if (confirm('确定要删除这个文件吗？')) {
+        fetch(`/files/delete/${fileId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.error || '删除失败');
+            }
+        })
+        .catch(error => {
+            alert('删除失败：' + error);
+        });
+    }
+}
+
+let currentFile = null;
+let pdfDoc = null;
+let currentPage = 1;
+let currentRotation = 0;
+let currentScale = 1;
+
+async function previewFile(url, type, name) {
+    currentFile = { url, type, name };
+    const modal = document.getElementById('previewModal');
+    const container = document.getElementById('previewContainer');
+    const title = document.getElementById('previewTitle');
+    const toolbar = document.getElementById('previewToolbar');
+    const pdfNavigation = document.getElementById('pdfNavigation');
+    
+    title.textContent = name;
+    container.innerHTML = '';
+    toolbar.innerHTML = '';
+    pdfNavigation.style.display = 'none';
+    
+    // 重置变换
+    currentRotation = 0;
+    currentScale = 1;
+    
+    switch(type) {
+        case 'image':
+            setupImagePreview(url, name, container, toolbar);
+            break;
+        case 'document':
+            if (url.toLowerCase().endsWith('.pdf')) {
+                await setupPdfPreview(url, container, toolbar);
+            } else if (url.toLowerCase().match(/\.(txt|md|json|xml|csv)$/)) {
+                await setupTextPreview(url, container, toolbar);
+            } else {
+                container.innerHTML = '<p>此文件类型暂不支持预览，请下载后查看</p>';
+            }
+            break;
+        case 'audio':
+            setupAudioPreview(url, container);
+            break;
+        default:
+            container.innerHTML = '<p>此文件类型暂不支持预览，请下载后查看</p>';
+    }
+    
+    modal.style.display = 'block';
+}
+
+function setupImagePreview(url, name, container, toolbar) {
+    container.innerHTML = `<img src="${url}" alt="${name}" style="transform: rotate(${currentRotation}deg) scale(${currentScale})">`;
+    
+    toolbar.innerHTML = `
+        <button onclick="rotateImage(-90)"><i class="fas fa-undo"></i> 向左旋转</button>
+        <button onclick="rotateImage(90)"><i class="fas fa-redo"></i> 向右旋转</button>
+        <button onclick="zoomImage(1.2)"><i class="fas fa-search-plus"></i> 放大</button>
+        <button onclick="zoomImage(0.8)"><i class="fas fa-search-minus"></i> 缩小</button>
+        <button onclick="resetImage()"><i class="fas fa-sync"></i> 重置</button>
+    `;
+}
+
+async function setupPdfPreview(url, container, toolbar) {
+    container.innerHTML = '<canvas id="pdfViewer"></canvas>';
+    const pdfNavigation = document.getElementById('pdfNavigation');
+    
+    try {
+        pdfDoc = await pdfjsLib.getDocument(url).promise;
+        currentPage = 1;
+        document.getElementById('pdfPageCount').textContent = pdfDoc.numPages;
+        pdfNavigation.style.display = 'flex';
+        renderPdfPage(currentPage);
+        
+        toolbar.innerHTML = `
+            <button onclick="rotatePdf(-90)"><i class="fas fa-undo"></i> 向左旋转</button>
+            <button onclick="rotatePdf(90)"><i class="fas fa-redo"></i> 向右旋转</button>
+            <button onclick="zoomPdf(1.2)"><i class="fas fa-search-plus"></i> 放大</button>
+            <button onclick="zoomPdf(0.8)"><i class="fas fa-search-minus"></i> 缩小</button>
+            <button onclick="resetPdf()"><i class="fas fa-sync"></i> 重置</button>
+        `;
+    } catch (error) {
+        container.innerHTML = '<p>PDF加载失败，请稍后重试或下载查看</p>';
+    }
+}
+
+async function setupTextPreview(url, container, toolbar) {
+    try {
+        const response = await fetch(url);
+        const text = await response.text();
+        container.innerHTML = `<pre class="text-preview">${text}</pre>`;
+        
+        toolbar.innerHTML = `
+            <button onclick="zoomText(1.2)"><i class="fas fa-search-plus"></i> 放大字体</button>
+            <button onclick="zoomText(0.8)"><i class="fas fa-search-minus"></i> 缩小字体</button>
+            <button onclick="resetText()"><i class="fas fa-sync"></i> 重置</button>
+        `;
+    } catch (error) {
+        container.innerHTML = '<p>文本加载失败，请稍后重试或下载查看</p>';
+    }
+}
+
+function setupAudioPreview(url, container) {
+    container.innerHTML = `
+        <div class="audio-player">
+            <audio controls>
+                <source src="${url}" type="audio/mpeg">
+                您的浏览器不支持音频播放
+            </audio>
+        </div>
+    `;
+}
+
+// 图片预览控制函数
+function rotateImage(angle) {
+    currentRotation = (currentRotation + angle) % 360;
+    updateImageTransform();
+}
+
+function zoomImage(factor) {
+    currentScale *= factor;
+    updateImageTransform();
+}
+
+function resetImage() {
+    currentRotation = 0;
+    currentScale = 1;
+    updateImageTransform();
+}
+
+function updateImageTransform() {
+    const img = document.querySelector('#previewContainer img');
+    if (img) {
+        img.style.transform = `rotate(${currentRotation}deg) scale(${currentScale})`;
+    }
+}
+
+// PDF预览控制函数
+async function renderPdfPage(pageNum) {
+    try {
+        const page = await pdfDoc.getPage(pageNum);
+        const canvas = document.getElementById('pdfViewer');
+        const ctx = canvas.getContext('2d');
+        
+        const viewport = page.getViewport({ scale: currentScale, rotation: currentRotation });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        await page.render({
+            canvasContext: ctx,
+            viewport: viewport
+        }).promise;
+        
+        document.getElementById('pdfPageNum').value = pageNum;
+    } catch (error) {
+        console.error('Error rendering PDF page:', error);
+    }
+}
+
+function changePdfPage(delta) {
+    const newPage = currentPage + delta;
+    if (newPage >= 1 && newPage <= pdfDoc.numPages) {
+        currentPage = newPage;
+        renderPdfPage(currentPage);
+    }
+}
+
+// 文本预览控制函数
+function zoomText(factor) {
+    const textPreview = document.querySelector('.text-preview');
+    if (textPreview) {
+        const currentSize = parseFloat(window.getComputedStyle(textPreview).fontSize);
+        textPreview.style.fontSize = `${currentSize * factor}px`;
+    }
+}
+
+function resetText() {
+    const textPreview = document.querySelector('.text-preview');
+    if (textPreview) {
+        textPreview.style.fontSize = '';
+    }
+}
+
+// 下载文件
+function downloadFile() {
+    if (currentFile) {
+        window.open(currentFile.url, '_blank');
+    }
+}
+
+// 关闭预览时清理
+document.querySelector('.close').addEventListener('click', () => {
+    currentFile = null;
+    pdfDoc = null;
+    currentPage = 1;
+    currentRotation = 0;
+    currentScale = 1;
+    document.getElementById('previewModal').style.display = 'none';
+});
+
+// 视图切换
+document.getElementById('viewToggle').addEventListener('click', function() {
+    const fileList = document.querySelector('.file-list');
+    fileList.classList.toggle('list-view');
+    this.querySelector('i').classList.toggle('fa-th-large');
+    this.querySelector('i').classList.toggle('fa-list');
+});
+
+// 文件排序
+document.getElementById('sortSelect').addEventListener('change', function() {
+    const fileList = document.querySelector('.file-list');
+    const files = Array.from(fileList.children);
+    
+    files.sort((a, b) => {
+        switch(this.value) {
+            case 'name':
+                return a.querySelector('.file-name').textContent
+                    .localeCompare(b.querySelector('.file-name').textContent);
+            case 'date':
+                return new Date(b.dataset.date) - new Date(a.dataset.date);
+            case 'size':
+                return parseInt(b.dataset.size) - parseInt(a.dataset.size);
+        }
+    });
+    
+    files.forEach(file => fileList.appendChild(file));
+});
+</script>
+{% endblock %}

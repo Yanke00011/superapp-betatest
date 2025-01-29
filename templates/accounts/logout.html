@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <h2>确认退出</h2>
+        <div class="logout-message">
+            <p>您确定要退出登录吗？</p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="login-btn">确认退出</button>
+        </form>
+        <div class="links">
+            <a href="{% url 'home' %}">返回主页</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.logout-message {
+    text-align: center;
+    margin: 20px 0;
+    color: #666;
+}
+
+.login-btn {
+    background-color: #dc3545;
+}
+
+.login-btn:hover {
+    background-color: #c82333;
+}
+</style>
+{% endblock %} 

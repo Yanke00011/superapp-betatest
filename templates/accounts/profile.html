@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<link href="{% static 'css/profile.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {% if user.avatar %}
+                <img src="{{ user.avatar.url }}" alt="头像" class="avatar-img">
+            {% else %}
+                <i class="fas fa-user"></i>
+            {% endif %}
+        </div>
+        <div class="profile-info">
+            <h1 class="profile-name">{{ user.username }}</h1>
+            <div class="profile-email">{{ user.email }}</div>
+            <div class="profile-meta">
+                <span>注册时间：{{ user.date_joined|date:"Y-m-d" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-stats">
+        <div class="stat-card">
+            <div class="stat-value">{{ user.storage_quota.get_used_storage|filesizeformat }}</div>
+            <div class="stat-label">已用存储空间</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ user.files.count }}</div>
+            <div class="stat-label">文件总数</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ user.last_login|date:"Y-m-d H:i" }}</div>
+            <div class="stat-label">最后登录</div>
+        </div>
+    </div>
+
+    <div class="profile-form">
+        <h2>个人资料设置</h2>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" name="username" class="form-control" value="{{ user.username }}">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">邮箱</label>
+                <input type="email" name="email" class="form-control" value="{{ user.email }}">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">头像</label>
+                <div class="avatar-upload">
+                    <input type="file" name="avatar" id="avatarInput" class="avatar-input" accept="image/*">
+                    <label for="avatarInput" class="avatar-trigger">
+                        <i class="fas fa-camera"></i>
+                        <span>选择图片</span>
+                    </label>
+                    <div class="selected-file"></div>
+                </div>
+            </div>
+
+            {% if form.errors %}
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <div class="error-message">{{ error }}</div>
+                    {% endfor %}
+                {% endfor %}
+            {% endif %}
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="{% if message.tags %}{{ message.tags }}-message{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存更改</button>
+                <a href="{% url 'password_change' %}" class="btn btn-secondary">修改密码</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('avatarInput').addEventListener('change', function(e) {
+    const fileName = e.target.files[0]?.name;
+    if (fileName) {
+        const selectedFile = this.closest('.avatar-upload').querySelector('.selected-file');
+        selectedFile.textContent = fileName;
+        this.closest('.avatar-upload').classList.add('has-file');
+        
+        // 预览选中的图片
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const avatar = document.querySelector('.profile-avatar');
+            const existingImg = avatar.querySelector('img');
+            const icon = avatar.querySelector('i');
+            
+            if (existingImg) {
+                existingImg.src = e.target.result;
+            } else {
+                if (icon) icon.remove();
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.classList.add('avatar-img');
+                avatar.appendChild(img);
+            }
+        }
+        reader.readAsDataURL(e.target.files[0]);
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<style>
+    .home-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    .welcome-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .welcome-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .welcome-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--light-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--primary-color);
+        overflow: hidden;
+    }
+
+    .welcome-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .welcome-text h1 {
+        font-size: 1.8rem;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .welcome-text p {
+        color: var(--secondary-color);
+    }
+
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .action-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--primary-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .action-text h3 {
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .action-text p {
+        color: var(--secondary-color);
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .home-container {
+            padding: 0 1rem;
+        }
+
+        .welcome-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .quick-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="home-container">
+    <div class="welcome-section">
+        <div class="welcome-header">
+            <div class="welcome-avatar">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="头像">
+                {% else %}
+                    <i class="fas fa-user"></i>
+                {% endif %}
+            </div>
+            <div class="welcome-text">
+                <h1>欢迎回来，{{ user.username }}</h1>
+                <p>今天是 {% now "Y年n月j日" %}，开始您的工作吧</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-actions">
+        <a href="{% url 'files:file_list' %}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-folder"></i>
+            </div>
+            <div class="action-text">
+                <h3>我的文件</h3>
+                <p>管理您的所有文件和文件夹</p>
+            </div>
+        </a>
+        <a href="{% url 'profile' %}" class="action-card">
+            <div class="action-icon">
+                <i class="fas fa-user-cog"></i>
+            </div>
+            <div class="action-text">
+                <h3>个人资料</h3>
+                <p>查看和修改您的个人信息</p>
+            </div>
+        </a>
+        <a href="#" class="action-card" onclick="document.getElementById('uploadInput').click(); return false;">
+            <div class="action-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="action-text">
+                <h3>上传文件</h3>
+                <p>快速上传新的文件</p>
+            </div>
+        </a>
+    </div>
+</div>
+
+<input type="file" id="uploadInput" style="display: none;" multiple>
+
+<script>
+document.getElementById('uploadInput').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        // 重定向到文件管理页面并触发上传
+        window.location.href = "{% url 'files:file_list' %}?action=upload";
+    }
+});
+</script>
+{% endblock %} 

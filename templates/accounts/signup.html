@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<link href="{% static 'css/auth.css' %}" rel="stylesheet">
+<style>
+    /* 针对注册页面的特殊样式 */
+    .auth-container {
+        min-height: auto;  /* 移除最小高度限制 */
+        margin: 1rem auto;
+        align-items: flex-start;
+    }
+
+    .auth-card {
+        padding: 1.5rem;
+    }
+
+    .auth-header {
+        margin-bottom: 1rem;
+    }
+
+    .form-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .input-group {
+        margin-bottom: 0.25rem;
+    }
+
+    .form-label {
+        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        padding: 0.625rem 1rem 0.625rem 2.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* 两列布局 */
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    /* 密码要求区域优化 */
+    .password-requirements {
+        padding: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .requirement-items {
+        gap: 0.25rem;
+    }
+
+    .requirement-item {
+        font-size: 0.8rem;
+    }
+
+    /* 密码强度指示器 */
+    .password-strength {
+        margin: 0.375rem 0;
+    }
+
+    .strength-bar {
+        height: 4px;
+        margin-bottom: 0.25rem;
+    }
+
+    /* 响应式调整 */
+    @media (max-width: 576px) {
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">创建账号</h1>
+            <p class="auth-subtitle">欢迎加入，请填写以下信息完成注册</p>
+        </div>
+
+        <form method="post" class="auth-form">
+            {% csrf_token %}
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="id_phone_number">手机号码</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-mobile-alt"></i></span>
+                        <input type="tel" name="phone_number" class="form-control" id="id_phone_number" required 
+                               pattern="^1[3-9]\d{9}$" placeholder="请输入11位手机号码">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="id_real_name">真实姓名</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-user"></i></span>
+                        <input type="text" name="real_name" class="form-control" id="id_real_name" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="id_birthday">出生日期</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-calendar"></i></span>
+                        <input type="date" name="birthday" class="form-control" id="id_birthday" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="id_email">邮箱</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                        <input type="email" name="email" class="form-control" id="id_email" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="id_password1">密码</label>
+                <div class="input-group">
+                    <span class="input-icon"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password1" class="form-control" id="id_password1" required>
+                    <button type="button" class="password-toggle" onclick="togglePassword('id_password1')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <div class="password-strength">
+                    <div class="strength-bar">
+                        <div class="strength-progress"></div>
+                    </div>
+                    <span class="strength-text">密码强度: <span class="strength-label">弱</span></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="id_password2">确认密码</label>
+                <div class="input-group">
+                    <span class="input-icon"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password2" class="form-control" id="id_password2" required>
+                    <button type="button" class="password-toggle" onclick="togglePassword('id_password2')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <div class="password-match">
+                    <i class="fas fa-circle"></i>
+                    <span>密码匹配</span>
+                </div>
+            </div>
+
+            <div class="password-requirements">
+                <div class="requirement-items">
+                    <div class="requirement-item" data-requirement="length">
+                        <i class="fas fa-circle"></i>
+                        <span>至少8个字符</span>
+                    </div>
+                    <div class="requirement-item" data-requirement="lowercase">
+                        <i class="fas fa-circle"></i>
+                        <span>包含小写字母</span>
+                    </div>
+                    <div class="requirement-item" data-requirement="uppercase">
+                        <i class="fas fa-circle"></i>
+                        <span>包含大写字母</span>
+                    </div>
+                    <div class="requirement-item" data-requirement="number">
+                        <i class="fas fa-circle"></i>
+                        <span>包含数字</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="form-error">
+                    {% for error in form.non_field_errors %}
+                        <p><i class="fas fa-exclamation-circle"></i> {{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="auth-actions">
+                <a href="{% url 'login' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回登录
+                </a>
+                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                    <i class="fas fa-user-plus"></i> 创建账号
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// 复用密码修改页面的JavaScript代码
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const button = input.nextElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+document.getElementById('id_password1').addEventListener('input', function() {
+    const password = this.value;
+    const requirements = {
+        length: password.length >= 8,
+        lowercase: /[a-z]/.test(password),
+        uppercase: /[A-Z]/.test(password),
+        number: /[0-9]/.test(password)
+    };
+    
+    // 更新要求指示器
+    Object.entries(requirements).forEach(([key, met]) => {
+        const item = document.querySelector(`[data-requirement="${key}"]`);
+        const icon = item.querySelector('i');
+        if (met) {
+            icon.className = 'fas fa-check-circle';
+            item.classList.add('met');
+        } else {
+            icon.className = 'fas fa-circle';
+            item.classList.remove('met');
+        }
+    });
+    
+    // 计算密码强度
+    const strength = Object.values(requirements).filter(Boolean).length;
+    const strengthBar = document.querySelector('.strength-progress');
+    const strengthLabel = document.querySelector('.strength-label');
+    
+    strengthBar.style.width = `${strength * 25}%`;
+    strengthBar.className = 'strength-progress';
+    
+    if (strength <= 2) {
+        strengthBar.classList.add('weak');
+        strengthLabel.textContent = '弱';
+    } else if (strength === 3) {
+        strengthBar.classList.add('medium');
+        strengthLabel.textContent = '中';
+    } else {
+        strengthBar.classList.add('strong');
+        strengthLabel.textContent = '强';
+    }
+    
+    updateSubmitButton();
+});
+
+// 检查密码匹配
+document.getElementById('id_password2').addEventListener('input', function() {
+    const password1 = document.getElementById('id_password1').value;
+    const password2 = this.value;
+    const matchIndicator = document.querySelector('.password-match');
+    const icon = matchIndicator.querySelector('i');
+    
+    if (password2) {
+        if (password1 === password2) {
+            icon.className = 'fas fa-check-circle';
+            matchIndicator.classList.add('matched');
+        } else {
+            icon.className = 'fas fa-times-circle';
+            matchIndicator.classList.remove('matched');
+        }
+    } else {
+        icon.className = 'fas fa-circle';
+        matchIndicator.classList.remove('matched');
+    }
+    
+    updateSubmitButton();
+});
+
+// 手机号码验证
+document.getElementById('id_phone_number').addEventListener('input', function() {
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    this.setCustomValidity(
+        phoneRegex.test(this.value) ? '' : '请输入有效的手机号码（11位数字，以1开头）'
+    );
+    updateSubmitButton();
+});
+
+function updateSubmitButton() {
+    const phone = document.getElementById('id_phone_number').value;
+    const phoneValid = /^1[3-9]\d{9}$/.test(phone);
+    const realName = document.getElementById('id_real_name').value;
+    const birthday = document.getElementById('id_birthday').value;
+    const email = document.getElementById('id_email').value;
+    const password1 = document.getElementById('id_password1').value;
+    const password2 = document.getElementById('id_password2').value;
+    const requirements = document.querySelectorAll('.requirement-item.met');
+    
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = !(
+        phoneValid &&
+        realName &&
+        birthday &&
+        email &&
+        password1 === password2 &&
+        requirements.length >= 3 // 至少满足3个密码要求
+    );
+}
+
+// 监听所有输入框的变化
+['id_phone_number', 'id_real_name', 'id_birthday', 'id_email', 'id_password1', 'id_password2'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateSubmitButton);
+});
+</script>
+{% endblock %} 
