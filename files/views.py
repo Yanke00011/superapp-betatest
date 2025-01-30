@@ -13,6 +13,8 @@ from django.views.generic import ListView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum
 from django.contrib import messages
+from django.core.cache import cache
+from django.db import transaction
 
 # Create your views here.
 
@@ -83,34 +85,63 @@ class FileListView(LoginRequiredMixin, ListView):
         return context
 
 @login_required
-@require_POST
+def upload_progress(request):
+    """获取文件上传进度"""
+    if 'X-Progress-ID' in request.GET:
+        progress_id = request.GET['X-Progress-ID']
+        cache_key = f'upload_progress_{progress_id}'
+        data = cache.get(cache_key, {})
+        return JsonResponse(data)
+    return JsonResponse({'error': 'Progress ID not found'})
+
+@login_required
+@transaction.atomic
 def upload_file(request):
-    if request.method == 'POST' and request.FILES.get('file'):
-        file = request.FILES['file']
-        # 检查存储配额
-        quota = request.user.storage_quota
-        if not quota.has_sufficient_space(file.size):
+    if request.method == 'POST':
+        try:
+            file = request.FILES['file']
+            user = request.user
+            
+            # 检查存储配额
+            quota = user.storage_quota
+            if not quota.has_sufficient_space(file.size):
+                return JsonResponse({
+                    'status': 'error',
+                    'message': '存储空间不足'
+                })
+            
+            # 验证文件类型
+            file_type = get_file_type(file.name)
+            if file_type not in settings.ALLOWED_FILE_TYPES:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': '不支持的文件类型'
+                })
+            
+            # 创建文件记录
+            user_file = UserFile.objects.create(
+                user=user,
+                file=file,
+                file_type=file_type,
+                original_name=file.name,
+                file_size=file.size
+            )
+            
+            # 更新存储配额
+            quota.update_used_storage(file.size)
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': '文件上传成功',
+                'file_id': user_file.id
+            })
+            
+        except Exception as e:
             return JsonResponse({
                 'status': 'error',
-                'message': '存储空间不足'
+                'message': str(e)
             })
-        
-        # 创建文件记录
-        user_file = UserFile.objects.create(
-            user=request.user,
-            file=file,
-            original_name=file.name,
-            file_size=file.size
-        )
-        
-        # 更新已使用的存储空间
-        quota.update_used_storage(file.size)
-        
-        return JsonResponse({
-            'status': 'success',
-            'message': '文件上传成功',
-            'file_id': user_file.id
-        })
+    
     return JsonResponse({'status': 'error', 'message': '无效的请求'})
 
 @login_required

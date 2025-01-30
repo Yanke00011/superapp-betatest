@@ -9,13 +9,17 @@ from django.conf import settings
 
 class CustomUser(AbstractUser):
     def get_avatar_upload_path(self, filename):
-        # 为每个用户创建独立的头像目录
-        return os.path.join('avatars', str(self.id), filename)
+        # 确保用户目录存在
+        user_path = os.path.join('avatars', str(self.id))
+        full_path = os.path.join(settings.MEDIA_ROOT, user_path)
+        os.makedirs(full_path, exist_ok=True)
+        return os.path.join(user_path, filename)
 
     phone_number = models.CharField(
         '手机号码',
         max_length=11,
         unique=True,
+        db_index=True,  # 添加索引
         validators=[
             RegexValidator(
                 regex=r'^1[3-9]\d{9}$',
@@ -53,6 +57,10 @@ class CustomUser(AbstractUser):
     class Meta:
         verbose_name = '用户'
         verbose_name_plural = '用户'
+        indexes = [
+            models.Index(fields=['username']),
+            models.Index(fields=['email']),
+        ]
 
     def __str__(self):
         return self.username

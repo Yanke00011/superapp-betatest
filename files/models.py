@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, ValidationError
 from django.utils import timezone
 import os
 
@@ -51,7 +51,10 @@ class UserFile(models.Model):
     )
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='files')
-    file = models.FileField(upload_to='users/%Y/%m/%d/')
+    file = models.FileField(
+        upload_to='users/%Y/%m/%d/',
+        validators=[FileExtensionValidator(allowed_extensions=settings.ALLOWED_FILE_TYPES.get(self.file_type, []))]
+    )
     file_type = models.CharField(max_length=20, choices=FILE_TYPES)
     original_name = models.CharField(max_length=255)
     file_size = models.BigIntegerField()  # 以字节为单位
@@ -101,3 +104,7 @@ class UserFile(models.Model):
             'other': 'fa-file'
         }
         return icon_map.get(self.file_type, 'fa-file')
+
+    def clean(self):
+        if self.file and self.file.size > settings.MAX_UPLOAD_SIZE:
+            raise ValidationError(f'文件大小不能超过 {settings.MAX_UPLOAD_SIZE/1024/1024}MB')

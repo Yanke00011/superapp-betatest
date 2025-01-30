@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-2&wo6=&3040vxi38ygt2jd%dz!qe7q57+$0rj34g&iiab(l84#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['your-domain.com', 'www.your-domain.com']
 
 
 # Application definition
@@ -157,3 +157,24 @@ MAX_FILES_PER_TYPE = {
 # 文件预览设置
 PREVIEW_IMAGE_SIZE = (800, 600)  # 图片预览最大尺寸
 PREVIEW_VIDEO_LENGTH = 60  # 视频预览最大时长（秒）
+
+# 文件上传配置
+FILE_UPLOAD_HANDLERS = [
+    'django.core.files.uploadhandler.MemoryFileUploadHandler',
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
+]
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB
+FILE_UPLOAD_TEMP_DIR = '/tmp'
+
+# 会话配置
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+SESSION_COOKIE_AGE = 1209600  # 2周
+SESSION_COOKIE_SECURE = True  # 仅通过HTTPS发送cookie
+
+# 缓存配置
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+    }
+}

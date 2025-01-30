@@ -20,6 +20,7 @@ from django.conf import settings
 import os
 from django.views.generic import View
 from files.models import UserStorageQuota
+from django.db import transaction
 
 # 添加登录尝试限制
 MAX_LOGIN_ATTEMPTS = 5
@@ -34,24 +35,21 @@ class CustomLoginView(LoginView):
         return reverse_lazy('home')  # 修改为重定向到home
     
     def form_valid(self, form):
-        # 清除登录尝试记录
-        cache.delete(f'login_attempts_{self.request.POST.get("phone_number")}')
-        # 处理"记住我"功能
-        if self.request.POST.get('remember_me'):
-            self.request.session.set_expiry(1209600)  # 2周
-        return super().form_valid(form)
-    
-    def form_invalid(self, form):
-        phone_number = self.request.POST.get('phone_number')
-        if phone_number:
-            attempts = cache.get(f'login_attempts_{phone_number}', 0) + 1
-            cache.set(f'login_attempts_{phone_number}', attempts, LOGIN_ATTEMPT_TIMEOUT)
-            
-            if attempts >= MAX_LOGIN_ATTEMPTS:
-                form.add_error(None, f'登录尝试次数过多，请{LOGIN_ATTEMPT_TIMEOUT//60}分钟后再试')
-                return self.render_to_response(self.get_context_data(form=form))
+        # 添加登录限制
+        username = form.cleaned_data.get('username')
+        cache_key = f'login_attempts_{username}'
+        attempts = cache.get(cache_key, 0)
         
-        return super().form_invalid(form)
+        if attempts >= 5:  # 限制登录尝试次数
+            form.add_error(None, '登录尝试次数过多，请15分钟后再试')
+            return self.form_invalid(form)
+            
+        if not form.is_valid():
+            cache.set(cache_key, attempts + 1, 900)  # 15分钟过期
+            return self.form_invalid(form)
+            
+        cache.delete(cache_key)  # 登录成功后清除计数
+        return super().form_valid(form)
 
 class SignUpView(CreateView):
     form_class = CustomUserCreationForm
@@ -181,18 +179,23 @@ class RegisterView(View):
         form = CustomUserCreationForm()
         return render(request, self.template_name, {'form': form})
     
+    @transaction.atomic  # 添加事务支持
     def post(self, request):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            # 创建用户的存储配额
-            UserStorageQuota.objects.create(
-                user=user,
-                max_storage=settings.MAX_USER_STORAGE
-            )
-            login(request, user)
-            messages.success(request, '账号创建成功！')
-            return redirect('home')
+            with transaction.atomic():
+                user = form.save()
+                # 创建用户存储配额
+                UserStorageQuota.objects.create(
+                    user=user,
+                    max_storage=settings.MAX_USER_STORAGE
+                )
+                # 创建用户目录
+                user_media_path = os.path.join(settings.MEDIA_ROOT, f'users/{user.id}')
+                os.makedirs(user_media_path, exist_ok=True)
+                
+                login(request, user)
+                return redirect('home')
         return render(request, self.template_name, {'form': form})
 
 class WelcomeView(View):
