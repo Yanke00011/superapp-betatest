@@ -21,6 +21,8 @@ import os
 from django.views.generic import View
 from files.models import UserStorageQuota
 from django.db import transaction
+from django.contrib.auth.forms import AuthenticationForm
+from django import forms
 
 # 添加登录尝试限制
 MAX_LOGIN_ATTEMPTS = 5
@@ -205,3 +207,21 @@ class WelcomeView(View):
         if request.user.is_authenticated:
             return redirect('home')
         return render(request, self.template_name)
+
+    def handle_no_permission(self):
+        return redirect('login')
+
+def bad_request(request, exception):
+    return render(request, 'errors/400.html', status=400)
+
+def permission_denied(request, exception):
+    return render(request, 'errors/403.html', status=403)
+
+def page_not_found(request, exception):
+    return render(request, 'errors/404.html', status=404)
+
+def server_error(request):
+    return render(request, 'errors/500.html', status=500)
+
+class CustomAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(label='手机号码', help_text='请输入注册时使用的手机号码')

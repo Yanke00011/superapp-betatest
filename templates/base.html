@@ -200,6 +200,179 @@
                 padding: 6px 12px;
             }
         }
+
+        .user-menu-container {
+            position: relative;
+        }
+
+        .user-menu-trigger {
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .user-menu-trigger:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-avatar-placeholder {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #007aff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        .user-menu-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 300px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.2s ease;
+            z-index: 1000;
+            margin-top: 8px;
+        }
+
+        .user-menu-container:hover .user-menu-dropdown {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-info-preview {
+            padding: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .user-preview-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .user-avatar-large {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .user-avatar-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-placeholder-large {
+            width: 100%;
+            height: 100%;
+            background: #007aff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 500;
+        }
+
+        .user-preview-details h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .user-preview-details p {
+            margin: 4px 0 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .user-preview-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 18px;
+            font-weight: 600;
+            color: #007aff;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .user-menu-actions {
+            padding: 8px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            color: #000;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .menu-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .menu-item i {
+            width: 20px;
+            color: #666;
+        }
+
+        .menu-item.logout {
+            margin-top: 8px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .menu-item.logout button {
+            width: 100%;
+            border: none;
+            background: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0;
+            color: #ff3b30;
+            cursor: pointer;
+        }
+
+        .menu-item.logout i {
+            color: #ff3b30;
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -212,18 +385,62 @@
                 <a href="{% url 'files:file_list' %}" class="nav-link {% if request.resolver_match.url_name == 'file_list' %}active{% endif %}">
                     <i class="fas fa-folder"></i> 文件管理
                 </a>
-                <a href="{% url 'profile' %}" class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
-                    {% if user.avatar %}
-                    <img src="{{ user.avatar.url }}" alt="头像" style="width: 24px; height: 24px; border-radius: 50%; margin-right: 8px; vertical-align: middle;">
-                    {% endif %}
-                    {{ user.real_name|default:user.username }}
-                </a>
-                <form method="post" action="{% url 'logout' %}" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="nav-link" style="border: none; background: none; cursor: pointer; color: var(--danger-color);">
-                        退出登录
-                    </button>
-                </form>
+                <div class="user-menu-container">
+                    <div class="user-menu-trigger">
+                        {% if user.avatar %}
+                            <img src="{{ user.avatar.url }}" alt="头像" class="user-avatar">
+                        {% else %}
+                            <div class="user-avatar-placeholder">{{ user.username|first|upper }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="user-menu-dropdown">
+                        <div class="user-info-preview">
+                            <div class="user-preview-header">
+                                <div class="user-avatar-large">
+                                    {% if user.avatar %}
+                                        <img src="{{ user.avatar.url }}" alt="头像">
+                                    {% else %}
+                                        <div class="avatar-placeholder-large">{{ user.username|first|upper }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="user-preview-details">
+                                    <h3>{{ user.username }}</h3>
+                                    <p>{{ user.phone_number }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="user-preview-stats">
+                                <div class="stat-item">
+                                    <span class="stat-value">{{ user.storage_quota.get_storage_usage_percent|floatformat:1 }}%</span>
+                                    <span class="stat-label">存储使用率</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value">{{ user.files.count }}</span>
+                                    <span class="stat-label">文件数量</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="user-menu-actions">
+                            <a href="{% url 'profile' %}" class="menu-item">
+                                <i class="fas fa-user"></i>
+                                <span>个人资料</span>
+                            </a>
+                            <a href="{% url 'files:file_list' %}" class="menu-item">
+                                <i class="fas fa-folder"></i>
+                                <span>我的文件</span>
+                            </a>
+                            <form method="post" action="{% url 'logout' %}" class="menu-item logout">
+                                {% csrf_token %}
+                                <button type="submit">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span>退出登录</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </nav>
         </div>
     </header>

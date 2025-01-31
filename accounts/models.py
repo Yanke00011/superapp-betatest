@@ -19,22 +19,20 @@ class CustomUser(AbstractUser):
         '手机号码',
         max_length=11,
         unique=True,
-        db_index=True,  # 添加索引
+        db_index=True,
         validators=[
             RegexValidator(
                 regex=r'^1[3-9]\d{9}$',
                 message='请输入有效的手机号码（11位数字，以1开头）'
             )
         ],
-        help_text='请输入11位手机号码，例如：13800138000',
-        default='13800000000'
+        help_text='请输入11位手机号码，例如：13800138000'
     )
     birthday = models.DateField(
         '出生日期',
         null=True,
         blank=True,
-        help_text='请输入生日，格式：YYYY-MM-DD',
-        default=timezone.now
+        help_text='请输入生日，格式：YYYY-MM-DD'
     )
     avatar = models.ImageField(
         '头像',
@@ -47,12 +45,11 @@ class CustomUser(AbstractUser):
         '真实姓名',
         max_length=50,
         blank=True,
-        help_text='请输入您的真实姓名',
-        default=''
+        help_text='请输入您的真实姓名'
     )
     
     USERNAME_FIELD = 'phone_number'
-    REQUIRED_FIELDS = ['username', 'birthday', 'real_name']
+    REQUIRED_FIELDS = ['username']
 
     class Meta:
         verbose_name = '用户'

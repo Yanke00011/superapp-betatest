@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,9 +24,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-2&wo6=&3040vxi38ygt2jd%dz!qe7q57+$0rj34g&iiab(l84#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True  # 开发时设为 True
 
-ALLOWED_HOSTS = ['your-domain.com', 'www.your-domain.com']
+# 生产环境设置 (部署时使用)
+# DEBUG = False
+# ALLOWED_HOSTS = ['your-domain.com', 'www.your-domain.com', 'localhost', '127.0.0.1']
+
+ALLOWED_HOSTS = ['*']  # 开发时允许所有主机
+
+# 安全设置
+SECURE_SSL_REDIRECT = False  # 开发时设为 False
+SESSION_COOKIE_SECURE = False  # 开发时设为 False
+CSRF_COOKIE_SECURE = False  # 开发时设为 False
 
 
 # Application definition
@@ -49,6 +59,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.locale.LocaleMiddleware',  # 添加语言支持
 ]
 
 ROOT_URLCONF = 'superappbeta.urls'
@@ -123,20 +134,26 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
+# 添加 STATIC_ROOT 配置
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
+# 媒体文件配置
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# 确保目录存在
+os.makedirs(STATIC_ROOT, exist_ok=True)
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+
+# 确保用户上传目录存在
+USERS_UPLOAD_ROOT = MEDIA_ROOT / 'users'
+os.makedirs(USERS_UPLOAD_ROOT, exist_ok=True)
 
 # 允许上传的文件类型
 ALLOWED_FILE_TYPES = {
     'image': ['jpg', 'jpeg', 'png', 'gif'],
     'document': ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
-    'video': ['mp4', 'avi', 'mov'],
+    'video': ['mp4', 'avi', 'mov', 'wmv'],  # 添加更多视频格式
     'other': ['zip', 'rar', '7z']
 }
 
@@ -163,18 +180,27 @@ FILE_UPLOAD_HANDLERS = [
     'django.core.files.uploadhandler.MemoryFileUploadHandler',
     'django.core.files.uploadhandler.TemporaryFileUploadHandler',
 ]
-FILE_UPLOAD_MAX_MEMORY_SIZE = 2621440  # 2.5MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 FILE_UPLOAD_TEMP_DIR = '/tmp'
+FILE_UPLOAD_PERMISSIONS = 0o644
 
 # 会话配置
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 SESSION_COOKIE_AGE = 1209600  # 2周
-SESSION_COOKIE_SECURE = True  # 仅通过HTTPS发送cookie
 
 # 缓存配置
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
 }
+
+# 登录设置
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'welcome'
+
+# 文件权限设置
+FILE_UPLOAD_PERMISSIONS = 0o644
+MEDIA_ROOT_PERMISSIONS = 0o755

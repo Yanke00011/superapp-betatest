@@ -3,6 +3,7 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator, ValidationError
 from django.utils import timezone
 import os
+import uuid
 
 class UserStorageQuota(models.Model):
     user = models.OneToOneField(
@@ -50,14 +51,25 @@ class UserFile(models.Model):
         ('other', '其他')
     )
 
+    def get_allowed_extensions(self):
+        """根据文件类型返回允许的扩展名"""
+        return settings.ALLOWED_FILE_TYPES.get(self.file_type, [])
+
+    def get_upload_path(instance, filename):
+        """为每个文件生成唯一的上传路径"""
+        ext = os.path.splitext(filename)[1]
+        unique_filename = f"{uuid.uuid4().hex}{ext}"
+        return os.path.join('users', str(instance.user.id), instance.file_type, unique_filename)
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='files')
     file = models.FileField(
-        upload_to='users/%Y/%m/%d/',
-        validators=[FileExtensionValidator(allowed_extensions=settings.ALLOWED_FILE_TYPES.get(self.file_type, []))]
+        upload_to=get_upload_path,
+        # 移除这个验证器，我们会在clean方法中处理验证
+        # validators=[FileExtensionValidator(allowed_extensions=[])]
     )
     file_type = models.CharField(max_length=20, choices=FILE_TYPES)
     original_name = models.CharField(max_length=255)
-    file_size = models.BigIntegerField()  # 以字节为单位
+    file_size = models.BigIntegerField()
     uploaded_at = models.DateTimeField(auto_now_add=True)
     description = models.TextField(blank=True)
     is_public = models.BooleanField(default=False)
@@ -80,11 +92,27 @@ class UserFile(models.Model):
             return 'video'
         return 'other'
 
+    def clean(self):
+        if self.file:
+            # 验证文件大小
+            if self.file.size > settings.MAX_UPLOAD_SIZE:
+                raise ValidationError(f'文件大小不能超过 {settings.MAX_UPLOAD_SIZE/1024/1024}MB')
+            
+            # 验证文件类型
+            ext = os.path.splitext(self.file.name)[1][1:].lower()
+            allowed_extensions = []
+            for extensions in settings.ALLOWED_FILE_TYPES.values():
+                allowed_extensions.extend(extensions)
+            
+            if ext not in allowed_extensions:
+                raise ValidationError(f'不支持的文件类型。支持的类型：{", ".join(allowed_extensions)}')
+
     def save(self, *args, **kwargs):
         if not self.file_type:
             self.file_type = self.get_file_type()
         if not self.file_size:
             self.file_size = self.file.size
+        self.full_clean()  # 在保存前进行验证
         super().save(*args, **kwargs)
 
     def get_file_size_display(self):
@@ -105,6 +133,21 @@ class UserFile(models.Model):
         }
         return icon_map.get(self.file_type, 'fa-file')
 
-    def clean(self):
-        if self.file and self.file.size > settings.MAX_UPLOAD_SIZE:
-            raise ValidationError(f'文件大小不能超过 {settings.MAX_UPLOAD_SIZE/1024/1024}MB')
+    def delete(self, *args, **kwargs):
+        """重写删除方法以确保文件也被删除"""
+        # 保存文件路径以便后续删除
+        file_path = self.file.path if self.file else None
+        
+        # 更新用户存储配额
+        if self.file_size:
+            self.user.storage_quota.update_used_storage(-self.file_size)
+        
+        # 调用父类的删除方法
+        super().delete(*args, **kwargs)
+        
+        # 删除物理文件
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass

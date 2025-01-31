@@ -7,32 +7,36 @@ from django.utils import timezone
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import GroupAdmin
 from django.db import transaction
+from files.models import UserStorageQuota
+
+class UserStorageQuotaInline(admin.StackedInline):
+    model = UserStorageQuota
+    can_delete = False
+    verbose_name = '存储配额'
+    verbose_name_plural = '存储配额'
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('phone_number', 'username', 'real_name', 'show_avatar', 
-                   'show_groups', 'date_joined', 'last_login', 'is_active', 'get_age')
-    list_filter = ('groups', 'is_active', 'date_joined', 'last_login')
-    search_fields = ('phone_number', 'username', 'real_name', 'email')
+    list_display = ('username', 'phone_number', 'real_name', 'date_joined', 'is_staff')
+    list_filter = ('is_staff', 'is_superuser', 'groups')
+    search_fields = ('username', 'phone_number', 'real_name')
     ordering = ('-date_joined',)
     
     fieldsets = (
-        ('账号信息', {'fields': ('phone_number', 'password')}),
-        ('个人信息', {'fields': ('username', 'real_name', 'email', 'birthday', 'avatar')}),
-        ('用户组和权限', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
-            'classes': ('collapse',),
-            'description': '设置用户组和具体权限'
-        }),
+        (None, {'fields': ('username', 'phone_number', 'password')}),
+        ('个人信息', {'fields': ('real_name', 'birthday', 'avatar')}),
+        ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('重要日期', {'fields': ('last_login', 'date_joined')}),
     )
     
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('phone_number', 'username', 'real_name', 'birthday', 'password1', 'password2', 'groups'),
+            'fields': ('username', 'phone_number', 'password1', 'password2'),
         }),
     )
+    
+    inlines = [UserStorageQuotaInline]
     
     def show_avatar(self, obj):
         if obj.avatar:

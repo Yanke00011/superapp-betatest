@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="error-container">
+    <h1>400 - 错误请求</h1>
+    <p>抱歉，您的请求无效。</p>
+    <a href="{% url 'home' %}" class="btn btn-primary">返回首页</a>
+</div>
+{% endblock %} 

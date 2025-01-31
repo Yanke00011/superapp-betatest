@@ -15,6 +15,9 @@ from django.db.models import Sum
 from django.contrib import messages
 from django.core.cache import cache
 from django.db import transaction
+from django.core.exceptions import ValidationError
+import uuid
+import logging
 
 # Create your views here.
 
@@ -28,37 +31,21 @@ def file_list(request):
     
     # 获取当前用户的所有文件
     files = UserFile.objects.filter(user=request.user)
-    file_types = UserFile.FILE_TYPES
     
-    # 添加文件统计
-    stats = {
-        'image': {'count': 0, 'size': 0},
-        'document': {'count': 0, 'size': 0},
-        'video': {'count': 0, 'size': 0},
-        'other': {'count': 0, 'size': 0}
-    }
-    
-    for file in files:
-        stats[file.file_type]['count'] += 1
-        stats[file.file_type]['size'] += file.file_size
-    
-    # 添加文件上传设置到上下文
     context = {
         'files': files,
-        'file_types': file_types,
-        'form': FileUploadForm(),
-        'image_count': stats['image']['count'],
-        'image_size': stats['image']['size'],
-        'document_count': stats['document']['count'],
-        'document_size': stats['document']['size'],
-        'video_count': stats['video']['count'],
-        'video_size': stats['video']['size'],
-        'upload_settings_json': json.dumps({
-            'allowed_types': settings.ALLOWED_FILE_TYPES,
-            'max_size': settings.MAX_UPLOAD_SIZE,
-            'max_size_mb': settings.MAX_UPLOAD_SIZE / (1024 * 1024)
-        })
+        'file_types': UserFile.FILE_TYPES,
+        'max_upload_size': settings.MAX_UPLOAD_SIZE,
+        'allowed_file_types': json.dumps(settings.ALLOWED_FILE_TYPES),
+        'storage_quota': storage_quota,
     }
+    
+    # 打印调试信息
+    print("Upload configuration:", {
+        'max_upload_size': settings.MAX_UPLOAD_SIZE,
+        'allowed_file_types': settings.ALLOWED_FILE_TYPES,
+    })
+    
     return render(request, 'files/file_list.html', context)
 
 class FileListView(LoginRequiredMixin, ListView):
@@ -99,24 +86,49 @@ def upload_progress(request):
 def upload_file(request):
     if request.method == 'POST':
         try:
+            if 'file' not in request.FILES:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': '没有接收到文件'
+                })
+
             file = request.FILES['file']
             user = request.user
             
             # 检查存储配额
-            quota = user.storage_quota
+            quota, created = UserStorageQuota.objects.get_or_create(
+                user=user,
+                defaults={'max_storage': settings.MAX_USER_STORAGE}
+            )
+            
             if not quota.has_sufficient_space(file.size):
                 return JsonResponse({
                     'status': 'error',
                     'message': '存储空间不足'
                 })
             
-            # 验证文件类型
-            file_type = get_file_type(file.name)
-            if file_type not in settings.ALLOWED_FILE_TYPES:
+            # 获取文件类型
+            ext = os.path.splitext(file.name)[1][1:].lower()
+            file_type = None
+            
+            # 检查文件类型
+            for type_key, extensions in settings.ALLOWED_FILE_TYPES.items():
+                if ext in extensions:
+                    file_type = type_key
+                    break
+            
+            if not file_type:
+                allowed_types = []
+                for extensions in settings.ALLOWED_FILE_TYPES.values():
+                    allowed_types.extend(extensions)
                 return JsonResponse({
                     'status': 'error',
-                    'message': '不支持的文件类型'
+                    'message': f'不支持的文件类型。支持的类型：{", ".join(allowed_types)}'
                 })
+            
+            # 确保用户目录存在
+            user_dir = os.path.join(settings.MEDIA_ROOT, 'users', str(user.id), file_type)
+            os.makedirs(user_dir, exist_ok=True)
             
             # 创建文件记录
             user_file = UserFile.objects.create(
@@ -133,10 +145,18 @@ def upload_file(request):
             return JsonResponse({
                 'status': 'success',
                 'message': '文件上传成功',
-                'file_id': user_file.id
+                'file': {
+                    'id': user_file.id,
+                    'name': user_file.original_name,
+                    'size': user_file.get_file_size_display(),
+                    'type': user_file.file_type
+                }
             })
             
         except Exception as e:
+            import traceback
+            print('Upload error:', str(e))
+            print(traceback.format_exc())
             return JsonResponse({
                 'status': 'error',
                 'message': str(e)
@@ -154,15 +174,17 @@ def download_file(request, file_id):
 @login_required
 @require_POST
 def delete_file(request, file_id):
-    file = get_object_or_404(UserFile, id=file_id, user=request.user)
-    file_size = file.file_size
-    
-    # 删除文件
-    file.file.delete()
-    file.delete()
-    
-    # 更新存储配额
-    request.user.storage_quota.update_used_storage(-file_size)
-    
-    messages.success(request, '文件已删除')
-    return redirect('file_list')
+    try:
+        file = get_object_or_404(UserFile, id=file_id, user=request.user)
+        file_size = file.file_size
+        
+        # 删除文件
+        file.delete()
+        
+        # 更新存储配额
+        quota = request.user.storage_quota
+        quota.update_used_storage(-file_size)
+        
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})

@@ -59,59 +59,22 @@ class CustomAuthenticationForm(AuthenticationForm):
         )
 
 class CustomUserCreationForm(UserCreationForm):
-    email = forms.EmailField(
-        required=True,
-        widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': '请输入邮箱'
-        })
-    )
-    
     class Meta:
         model = CustomUser
-        fields = ('username', 'email', 'password1', 'password2')
-        widgets = {
-            'username': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '请输入用户名'
-            })
-        }
-    
+        fields = ('username', 'phone_number', 'password1', 'password2')
+        
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # 移除默认的密码帮助文本
-        self.fields['password1'].help_text = None
-        self.fields['password2'].help_text = None
-        # 添加form-control类到密码字段
-        self.fields['password1'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': '请输入密码'
-        })
-        self.fields['password2'].widget.attrs.update({
-            'class': 'form-control',
-            'placeholder': '请确认密码'
-        })
-    
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if CustomUser.objects.filter(email=email).exists():
-            raise forms.ValidationError('该邮箱已被注册')
-        return email
+        # 添加帮助文本
+        self.fields['username'].help_text = '请输入用户名，可以包含字母、数字和下划线'
+        self.fields['phone_number'].help_text = '请输入11位手机号码'
+        self.fields['password1'].help_text = '请输入至少8位的密码，包含数字和字母'
+        self.fields['password2'].help_text = '请再次输入密码'
 
-class CustomUserChangeForm(UserChangeForm):
-    password = None  # 移除密码字段，使用专门的密码修改表单
-
+class CustomUserChangeForm(forms.ModelForm):
     class Meta:
         model = CustomUser
-        fields = ('real_name', 'birthday', 'avatar')
-        widgets = {
-            'real_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'birthday': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date'
-            }),
-            'avatar': forms.FileInput(attrs={'class': 'form-control'})
-        }
+        fields = ('username', 'phone_number', 'real_name', 'birthday', 'avatar')
 
 class PasswordResetRequestForm(forms.Form):
     phone_number = forms.CharField(

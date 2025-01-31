@@ -22,9 +22,10 @@ from accounts.views import (
     CustomLoginView, SignUpView, profile_view, 
     password_reset_request, home_view,
     password_reset_confirm, logout_view,
-    WelcomeView
+    WelcomeView, bad_request, permission_denied, page_not_found, server_error
 )
 from django.contrib.auth.decorators import login_required
+from django.conf.urls import handler400, handler403, handler404, handler500
 
 urlpatterns = [
     path('', WelcomeView.as_view(), name='welcome'),
@@ -38,4 +39,13 @@ urlpatterns = [
     path('accounts/password-reset-request/', password_reset_request, name='password_reset_request'),
     path('accounts/password-reset-confirm/', password_reset_confirm, name='password_reset_confirm'),
     path('files/', include('files.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+handler400 = 'accounts.views.bad_request'
+handler403 = 'accounts.views.permission_denied'
+handler404 = 'accounts.views.page_not_found'
+handler500 = 'accounts.views.server_error'
