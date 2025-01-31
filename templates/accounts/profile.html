@@ -3,91 +3,358 @@
 
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-<link href="{% static 'css/profile.css' %}" rel="stylesheet">
+<style>
+.profile-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.profile-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.profile-header {
+    background: linear-gradient(135deg, #007AFF, #5856D6);
+    padding: 40px;
+    color: white;
+    text-align: center;
+    position: relative;
+}
+
+.profile-avatar-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 20px;
+}
+
+.profile-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    overflow: hidden;
+    background: #f0f0f0;
+    position: relative;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-upload-label {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #007AFF;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.avatar-upload-label:hover {
+    transform: scale(1.1);
+}
+
+.avatar-upload-label i {
+    color: white;
+    font-size: 16px;
+}
+
+#avatarInput {
+    display: none;
+}
+
+.profile-name {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.profile-meta {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-top: 4px;
+}
+
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 20px;
+    background: white;
+    margin-top: -30px;
+    border-radius: 16px;
+    position: relative;
+    z-index: 1;
+    margin-left: 20px;
+    margin-right: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-card {
+    text-align: center;
+    padding: 16px;
+    border-radius: 12px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #007AFF;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #666;
+}
+
+.profile-sections {
+    padding: 20px;
+}
+
+.profile-section {
+    margin-bottom: 30px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: #1d1d1f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-title i {
+    color: #007AFF;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.form-control:focus {
+    border-color: #007AFF;
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.1);
+    outline: none;
+    background: white;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: #007AFF;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0066CC;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: #007AFF;
+}
+
+.btn-secondary:hover {
+    background: #e9ecef;
+    transform: translateY(-1px);
+}
+
+.error-message {
+    color: #ff3b30;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.success-message {
+    background: #34c759;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-actions {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 12px;
+}
+
+.action-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.1);
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="profile-container">
-    <div class="profile-header">
-        <div class="profile-avatar">
-            {% if user.avatar %}
-                <img src="{{ user.avatar.url }}" alt="头像" class="avatar-img">
-            {% else %}
-                <i class="fas fa-user"></i>
-            {% endif %}
-        </div>
-        <div class="profile-info">
-            <h1 class="profile-name">{{ user.username }}</h1>
-            <div class="profile-email">{{ user.email }}</div>
-            <div class="profile-meta">
-                <span>注册时间：{{ user.date_joined|date:"Y-m-d" }}</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="profile-stats">
-        <div class="stat-card">
-            <div class="stat-value">{{ user.storage_quota.get_used_storage|filesizeformat }}</div>
-            <div class="stat-label">已用存储空间</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value">{{ user.files.count }}</div>
-            <div class="stat-label">文件总数</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value">{{ user.last_login|date:"Y-m-d H:i" }}</div>
-            <div class="stat-label">最后登录</div>
-        </div>
-    </div>
-
-    <div class="profile-form">
-        <h2>个人资料设置</h2>
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            
-            <div class="form-group">
-                <label class="form-label">用户名</label>
-                <input type="text" name="username" class="form-control" value="{{ user.username }}">
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">邮箱</label>
-                <input type="email" name="email" class="form-control" value="{{ user.email }}">
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">头像</label>
-                <div class="avatar-upload">
-                    <input type="file" name="avatar" id="avatarInput" class="avatar-input" accept="image/*">
-                    <label for="avatarInput" class="avatar-trigger">
-                        <i class="fas fa-camera"></i>
-                        <span>选择图片</span>
-                    </label>
-                    <div class="selected-file"></div>
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="profile-actions">
+                <div class="action-btn" title="设置">
+                    <i class="fas fa-cog"></i>
                 </div>
             </div>
+            
+            <div class="profile-avatar-wrapper">
+                <div class="profile-avatar">
+                    {% if user.avatar %}
+                        <img src="{{ user.avatar.url }}" alt="头像" id="avatarPreview">
+                    {% else %}
+                        <i class="fas fa-user" style="font-size: 48px; color: #666; line-height: 112px;"></i>
+                    {% endif %}
+                </div>
+                <label for="avatarInput" class="avatar-upload-label">
+                    <i class="fas fa-camera"></i>
+                </label>
+                <input type="file" id="avatarInput" name="avatar" accept="image/*" hidden>
+            </div>
+            
+            <h1 class="profile-name">{{ user.username }}</h1>
+            <div class="profile-meta">
+                <span>{{ user.phone_number }}</span>
+                <span>·</span>
+                <span>注册于 {{ user.date_joined|date:"Y-m-d" }}</span>
+            </div>
+        </div>
 
-            {% if form.errors %}
-                {% for field in form %}
-                    {% for error in field.errors %}
-                        <div class="error-message">{{ error }}</div>
-                    {% endfor %}
-                {% endfor %}
-            {% endif %}
+        <div class="profile-stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ user.storage_quota.get_used_storage|filesizeformat }}</div>
+                <div class="stat-label">已用存储空间</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ user.files.count }}</div>
+                <div class="stat-label">文件总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ user.last_login|date:"m-d H:i" }}</div>
+                <div class="stat-label">最后登录</div>
+            </div>
+        </div>
 
+        <div class="profile-sections">
             {% if messages %}
                 {% for message in messages %}
-                    <div class="{% if message.tags %}{{ message.tags }}-message{% endif %}">
+                    <div class="success-message">
+                        <i class="fas fa-check-circle"></i>
                         {{ message }}
                     </div>
                 {% endfor %}
             {% endif %}
 
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">保存更改</button>
-                <a href="{% url 'password_change' %}" class="btn btn-secondary">修改密码</a>
-            </div>
-        </form>
+            <form method="post" enctype="multipart/form-data" id="profileForm">
+                {% csrf_token %}
+                
+                <div class="profile-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-user-circle"></i>
+                        基本信息
+                    </h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label">用户名</label>
+                        <input type="text" name="username" class="form-control" value="{{ user.username }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">手机号码</label>
+                        <input type="tel" name="phone_number" class="form-control" value="{{ user.phone_number }}" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">真实姓名</label>
+                        <input type="text" name="real_name" class="form-control" value="{{ user.real_name }}">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i>
+                        保存更改
+                    </button>
+                    <a href="{% url 'password_change' %}" class="btn btn-secondary">
+                        <i class="fas fa-key"></i>
+                        修改密码
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -95,30 +362,33 @@
 {% block extra_js %}
 <script>
 document.getElementById('avatarInput').addEventListener('change', function(e) {
-    const fileName = e.target.files[0]?.name;
-    if (fileName) {
-        const selectedFile = this.closest('.avatar-upload').querySelector('.selected-file');
-        selectedFile.textContent = fileName;
-        this.closest('.avatar-upload').classList.add('has-file');
-        
-        // 预览选中的图片
+    if (this.files && this.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            const avatar = document.querySelector('.profile-avatar');
-            const existingImg = avatar.querySelector('img');
-            const icon = avatar.querySelector('i');
-            
-            if (existingImg) {
-                existingImg.src = e.target.result;
+            const preview = document.getElementById('avatarPreview');
+            if (preview) {
+                preview.src = e.target.result;
             } else {
-                if (icon) icon.remove();
                 const img = document.createElement('img');
                 img.src = e.target.result;
-                img.classList.add('avatar-img');
-                avatar.appendChild(img);
+                img.id = 'avatarPreview';
+                document.querySelector('.profile-avatar').innerHTML = '';
+                document.querySelector('.profile-avatar').appendChild(img);
             }
         }
-        reader.readAsDataURL(e.target.files[0]);
+        reader.readAsDataURL(this.files[0]);
+        
+        // 自动提交表单
+        document.getElementById('profileForm').submit();
+    }
+});
+
+// 添加表单验证
+document.getElementById('profileForm').addEventListener('submit', function(e) {
+    const username = this.querySelector('input[name="username"]').value;
+    if (!username.trim()) {
+        e.preventDefault();
+        alert('用户名不能为空');
     }
 });
 </script>
