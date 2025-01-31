@@ -359,6 +359,157 @@
     margin-bottom: 15px;
     opacity: 0.5;
 }
+
+/* 上传区域样式 */
+.upload-section {
+    margin: 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.upload-zone {
+    padding: 40px;
+    border: 2px dashed #e0e0e0;
+    border-radius: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    margin: 20px;
+}
+
+.upload-zone:hover {
+    border-color: #007AFF;
+    background: #f0f7ff;
+    transform: scale(0.99);
+}
+
+.upload-zone.drag-over {
+    border-color: #007AFF;
+    background: #f0f7ff;
+    transform: scale(0.98);
+}
+
+.upload-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #007AFF, #5856D6);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.upload-zone:hover .upload-icon {
+    transform: translateY(-5px);
+}
+
+.upload-icon i {
+    font-size: 40px;
+    color: white;
+}
+
+.upload-content h3 {
+    font-size: 20px;
+    color: #1d1d1f;
+    margin-bottom: 10px;
+}
+
+.upload-trigger {
+    color: #007AFF;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.upload-trigger:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.upload-hint {
+    color: #86868b;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+/* 上传进度条样式 */
+.upload-progress {
+    margin: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.progress-title {
+    font-weight: 500;
+    color: #1d1d1f;
+}
+
+.cancel-upload {
+    background: none;
+    border: none;
+    color: #ff3b30;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cancel-upload:hover {
+    background: #fff1f0;
+    transform: scale(1.1);
+}
+
+.progress-bar {
+    height: 6px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-inner {
+    height: 100%;
+    background: linear-gradient(90deg, #007AFF, #5856D6);
+    width: 0;
+    transition: width 0.3s ease;
+    background-size: 200% 200%;
+    animation: progress-animation 2s linear infinite;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #86868b;
+}
+
+@keyframes progress-animation {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
+}
 </style>
 {% endblock %}
 
@@ -454,19 +605,35 @@
         </div>
     </div>
 
-    <div class="upload-zone" id="uploadZone">
-        <div class="upload-content">
-            <i class="fas fa-cloud-upload-alt"></i>
-            <p>拖拽文件到此处或点击上传</p>
-            <small>支持的文件类型：图片、文档、视频等</small>
-            <form id="uploadForm" method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <input type="file" id="fileUpload" name="file" style="display: none;">
-            </form>
+    <!-- 上传区域部分 -->
+    <div class="upload-section">
+        <div class="upload-zone" id="uploadZone">
+            <input type="file" id="fileUpload" multiple hidden>
+            <div class="upload-content">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <h3>拖放文件到这里</h3>
+                <p>或者 <span class="upload-trigger">选择文件</span></p>
+                <p class="upload-hint">支持的文件类型：图片、文档、视频等</p>
+            </div>
         </div>
+
+        <!-- 上传进度显示 -->
         <div id="uploadProgress" class="upload-progress" style="display: none;">
-            <div class="progress-bar"><div></div></div>
-            <div class="progress-text">0%</div>
+            <div class="progress-header">
+                <span class="progress-title">正在上传...</span>
+                <button class="cancel-upload" onclick="cancelUpload()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-inner"></div>
+            </div>
+            <div class="progress-info">
+                <span class="file-name">文件名称</span>
+                <span class="progress-text">0%</span>
+            </div>
         </div>
     </div>
 
@@ -538,73 +705,88 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// 文件上传
-const uploadZone = document.getElementById('uploadZone');
-const fileInput = document.getElementById('fileUpload');
-const progressContainer = document.getElementById('uploadProgress');
-const progressBar = progressContainer.querySelector('.progress-bar div');
-const progressText = progressContainer.querySelector('.progress-text');
+// 文件上传相关的 JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileUpload');
+    const progressContainer = document.getElementById('uploadProgress');
+    const progressBar = progressContainer.querySelector('.progress-inner');
+    const progressText = progressContainer.querySelector('.progress-text');
+    const fileName = progressContainer.querySelector('.file-name');
 
-// 点击上传区域触发文件选择
-uploadZone.addEventListener('click', function(e) {
-    if (e.target !== fileInput) {
-        fileInput.click();
-    }
-});
-
-// 文件选择后处理上传
-fileInput.addEventListener('change', function() {
-    if (this.files.length > 0) {
-        const file = this.files[0];
-        console.log('Selected file:', file); // 调试日志
-        handleFileUpload(file);
-    }
-});
-
-// 文件上传处理函数
-function handleFileUpload(file) {
-    console.log('Starting upload...'); // 调试日志
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-    
-    // 显示进度条
-    progressContainer.style.display = 'block';
-    progressBar.style.width = '0%';
-    progressText.textContent = '0%';
-    
-    fetch('{% url "files:upload_file" %}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => {
-        console.log('Upload response:', response); // 调试日志
-        return response.json();
-    })
-    .then(data => {
-        console.log('Upload data:', data); // 调试日志
-        if (data.status === 'success') {
-            progressBar.style.width = '100%';
-            progressText.textContent = '100%';
-            setTimeout(() => {
-                window.location.reload();
-            }, 500);
-        } else {
-            throw new Error(data.message || '上传失败');
-        }
-    })
-    .catch(error => {
-        console.error('Upload error:', error); // 调试日志
-        alert('上传失败: ' + error.message);
-    })
-    .finally(() => {
-        progressContainer.style.display = 'none';
-        fileInput.value = '';
+    // 拖放处理
+    uploadZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-over');
     });
-}
+
+    uploadZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+    });
+
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileUpload(files[0]);
+        }
+    });
+
+    // 点击上传
+    uploadZone.addEventListener('click', function() {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            handleFileUpload(this.files[0]);
+        }
+    });
+
+    function handleFileUpload(file) {
+        // 显示进度条
+        progressContainer.style.display = 'block';
+        fileName.textContent = file.name;
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '{% url "files:upload_file" %}', true);
+
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progressBar.style.width = percentComplete + '%';
+                progressText.textContent = Math.round(percentComplete) + '%';
+            }
+        };
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                if (response.status === 'success') {
+                    // 上传成功，刷新文件列表
+                    location.reload();
+                } else {
+                    alert('上传失败：' + response.message);
+                }
+            }
+        };
+
+        xhr.send(formData);
+    }
+
+    function cancelUpload() {
+        // 取消上传逻辑
+        progressContainer.style.display = 'none';
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+    }
+});
 
 // 文件删除功能
 function deleteFile(fileId) {
