@@ -23,6 +23,9 @@ from files.models import UserStorageQuota
 from django.db import transaction
 from django.contrib.auth.forms import AuthenticationForm
 from django import forms
+from django.utils import timezone
+from datetime import datetime, timedelta
+import uuid
 
 # 添加登录尝试限制
 MAX_LOGIN_ATTEMPTS = 5
@@ -59,9 +62,23 @@ class SignUpView(CreateView):
     success_url = reverse_lazy('home')
     
     def form_valid(self, form):
-        response = super().form_valid(form)
-        login(self.request, self.object)
-        return response
+        try:
+            with transaction.atomic():
+                # 创建用户
+                user = form.save()
+                
+                # 创建用户目录
+                user_media_path = os.path.join(settings.MEDIA_ROOT, f'users/{user.id}')
+                os.makedirs(user_media_path, exist_ok=True)
+                
+                # 自动登录
+                login(self.request, user)
+                
+                messages.success(self.request, '注册成功！')
+                return redirect(self.success_url)
+        except Exception as e:
+            messages.error(self.request, f'注册失败：{str(e)}')
+            return self.form_invalid(form)
 
 @login_required
 def profile_view(request):
@@ -112,45 +129,57 @@ def password_reset_request(request):
     if request.method == 'POST':
         form = PasswordResetRequestForm(request.POST)
         if form.is_valid():
-            phone_number = form.cleaned_data['phone_number']
-            birthday = form.cleaned_data['birthday']
-            try:
-                user = CustomUser.objects.get(
-                    phone_number=phone_number,
-                    birthday=birthday
-                )
-                # 验证成功，重定向到设置新密码页面
-                request.session['reset_user_id'] = user.id
-                return redirect('password_reset_confirm')
-            except CustomUser.DoesNotExist:
-                form.add_error(None, '未找到匹配的用户信息')
+            user = form.cleaned_data['user']
+            # 将用户ID存储在session中
+            request.session['reset_user_id'] = user.id
+            request.session['reset_token'] = str(uuid.uuid4())
+            request.session['reset_timestamp'] = str(timezone.now())
+            return redirect('password_reset_confirm')
     else:
         form = PasswordResetRequestForm()
     return render(request, 'accounts/password_reset_form.html', {'form': form})
 
 def password_reset_confirm(request):
+    # 验证session中的重置信息
     user_id = request.session.get('reset_user_id')
-    if not user_id:
+    reset_token = request.session.get('reset_token')
+    reset_timestamp = request.session.get('reset_timestamp')
+    
+    if not all([user_id, reset_token, reset_timestamp]):
+        messages.error(request, '密码重置链接无效或已过期')
         return redirect('password_reset_request')
     
     try:
+        # 验证重置时间戳（15分钟有效期）
+        timestamp = datetime.fromisoformat(reset_timestamp)
+        if timezone.now() - timestamp > timedelta(minutes=15):
+            raise ValueError('重置链接已过期')
+        
         user = CustomUser.objects.get(id=user_id)
-    except CustomUser.DoesNotExist:
+    except (ValueError, CustomUser.DoesNotExist):
+        messages.error(request, '密码重置链接无效或已过期')
         return redirect('password_reset_request')
     
     if request.method == 'POST':
         form = SetPasswordForm(request.POST)
         if form.is_valid():
+            # 设置新密码
             user.set_password(form.cleaned_data['new_password1'])
             user.save()
+            
             # 清除session
-            del request.session['reset_user_id']
-            messages.success(request, '密码已重置，请使用新密码登录')
+            for key in ['reset_user_id', 'reset_token', 'reset_timestamp']:
+                request.session.pop(key, None)
+            
+            messages.success(request, '密码已重置成功，请使用新密码登录')
             return redirect('login')
     else:
         form = SetPasswordForm()
     
-    return render(request, 'accounts/password_reset_confirm.html', {'form': form})
+    return render(request, 'accounts/password_reset_confirm.html', {
+        'form': form,
+        'user': user
+    })
 
 @login_required
 def logout_view(request):

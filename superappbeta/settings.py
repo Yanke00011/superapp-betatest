@@ -103,6 +103,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -185,8 +188,9 @@ FILE_UPLOAD_TEMP_DIR = '/tmp'
 FILE_UPLOAD_PERMISSIONS = 0o644
 
 # 会话配置
-SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 1209600  # 2周
+SESSION_COOKIE_SECURE = False  # 开发环境设为False
 
 # 缓存配置
 CACHES = {
@@ -204,3 +208,8 @@ LOGOUT_REDIRECT_URL = 'welcome'
 # 文件权限设置
 FILE_UPLOAD_PERMISSIONS = 0o644
 MEDIA_ROOT_PERMISSIONS = 0o755
+
+# 数据库迁移相关设置
+MIGRATION_MODULES = {
+    'accounts': 'accounts.migrations',
+}
